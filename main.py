@@ -167,7 +167,7 @@ def start_practise(message):
 
 def ask_question(cid, practice_word, target_translation, buttons_word):
     """Задает вопрос и получает ответ"""
-    markup = types.ReplyKeyboardMarkup(row_width=2, one_time_keyboard=True)
+    markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True, one_time_keyboard=True)
     buttons = [types.KeyboardButton(word) for word in buttons_word]
     markup.add(*buttons)
     msg = bot.send_message(chat_id=cid, text=f'Как переводится "{practice_word}"?', reply_markup=markup)
@@ -234,7 +234,7 @@ def delete_word_translate(message):
         translations = session.query(Word).filter(Word.word == del_word, Word.user_id == user.id).all()
         if translations:
             list_translations = [translation.translation for translation in translations]
-            markup = types.ReplyKeyboardMarkup(row_width=2, one_time_keyboard=True)
+            markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True, one_time_keyboard=True)
             buttons = [types.KeyboardButton(translation) for translation in list_translations]
             markup.add(*buttons)
             trans = bot.send_message(chat_id=cid, text='Выбери перевод, который нужно удалить', reply_markup=markup)
