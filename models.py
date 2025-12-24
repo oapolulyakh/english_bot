@@ -12,7 +12,7 @@ class User(Base):
     words = relationship("Word", back_populates="user", cascade="all, delete-orphan")
 
     def __str__(self):
-        return f"User {self.CID}: {self.username}"
+        return f"User {self.cid}: {self.username}"
 
 class Word(Base):
     __tablename__ = 'words'
@@ -26,6 +26,15 @@ class Word(Base):
     def __str__(self):
         return f"Word {self.word} - > {self.translation}"
 
+class PresetWord(Base):
+    __tablename__ = 'preset_words'
+    id = Column(Integer, primary_key=True)
+    word = Column(String, nullable=False)
+    translation = Column(String, nullable=False)
+    category = Column(String, nullable=False)
+
+    def __str__(self):
+        return f"{self.word} -> {self.translation} ({self.category})"
+
 def create_tables(engine):
-    # Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
