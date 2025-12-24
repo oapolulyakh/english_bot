@@ -2,12 +2,11 @@ import telebot
 import os
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, session
-from models import Base, User, Word, PresetWord, create_tables
+from sqlalchemy.orm import sessionmaker
+from models import User, Word, PresetWord, create_tables
 from preset_words import add_initial_presets
 from telebot import types
 from random import shuffle
-import json
 
 load_dotenv()
 token = os.getenv('token')
@@ -20,8 +19,10 @@ create_tables(engine)
 add_initial_presets(engine)
 
 
-
 def random_word(cid):
+    """
+    Функция для создания списка слов при повторении
+    """
     with Session() as s:
         user_id = s.query(User).filter(User.cid == cid).first()
         if not user_id:
@@ -32,7 +33,9 @@ def random_word(cid):
     shuffle(words_list)
     return words_list
 
+
 def get_main_menu():
+    """Основное меню"""
     markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
     btn1 = types.KeyboardButton('➕ Добавить слово')
     btn2 = types.KeyboardButton('🎮 Тренировка')
@@ -41,8 +44,10 @@ def get_main_menu():
     markup.add(btn1, btn2, btn3, btn4)
     return markup
 
+
 @bot.message_handler(commands=['start'])
 def start(message):
+    """Начало работы с ботом, если пользователь нет в базе, добавляет в БД"""
     cid = message.chat.id
     username = message.from_user.username
     with Session() as session:
@@ -60,13 +65,16 @@ def start(message):
                 session.rollback()
     bot.send_message(cid, "Выбери действие в меню 👇", reply_markup=get_main_menu())
 
+
 @bot.message_handler(commands=['menu'])
 def menu(message):
     cid = message.chat.id
     bot.send_message(cid, "Выбери действие в меню 👇", reply_markup=get_main_menu())
 
+
 @bot.message_handler(func=lambda message: True)
 def handle_menu(message):
+    """Обработчик тестового меню"""
     if message.text == '➕ Добавить слово':
         ask_word(message)
     elif message.text == '🎮 Тренировка':
@@ -76,14 +84,17 @@ def handle_menu(message):
     elif message.text == '📚 Сборники слов':
         show_collections(message)
 
-@bot.message_handler(commands=['add'])
 
+@bot.message_handler(commands=['add'])
 def ask_word(message):
+    """Уточняет слово для добавления"""
     msg = bot.send_message(chat_id=message.chat.id, text="Введите слово на английском языке",
                            reply_markup=get_main_menu())
     bot.register_next_step_handler(msg, ask_translation)
 
+
 def ask_translation(message):
+    """Уточняет перевод для добавления"""
     cid = message.chat.id
     if message.content_type != 'text':
         msg = bot.send_message(cid, f"Это не текст. Введите слово буквами", reply_markup=get_main_menu())
@@ -95,6 +106,7 @@ def ask_translation(message):
 
 
 def add_word_logic(session, word, translation, user_id):
+    """Функция для добавления слова в БД"""
     existing_word = session.query(Word).filter(
         Word.word == word,
         Word.translation == translation,
@@ -110,6 +122,7 @@ def add_word_logic(session, word, translation, user_id):
 
 
 def add_word_db(message, word):
+    """Добавление нового слова в БД пользователем"""
     cid = message.chat.id
     if message.content_type != 'text':
         msg = bot.send_message(cid, f"Это не текст, введите перевод буквами", reply_markup=get_main_menu())
@@ -135,8 +148,10 @@ def add_word_db(message, word):
         print(e)
         bot.send_message(chat_id=cid, text="Ошибка записи.", reply_markup=get_main_menu())
 
+
 @bot.message_handler(commands=['practise'])
 def start_practise(message):
+    """Функция тренировки, формирует список и кнопки для ответа"""
     cid = message.chat.id
     words_list = random_word(cid)
     if len(words_list) < 2:
@@ -149,14 +164,18 @@ def start_practise(message):
     print(f'{buttons_word=} создан список')
     ask_question(cid, practice_word, target_translation, buttons_word)
 
+
 def ask_question(cid, practice_word, target_translation, buttons_word):
-    markup = types.ReplyKeyboardMarkup(row_width=2,one_time_keyboard=True)
+    """Задает вопрос и получает ответ"""
+    markup = types.ReplyKeyboardMarkup(row_width=2, one_time_keyboard=True)
     buttons = [types.KeyboardButton(word) for word in buttons_word]
     markup.add(*buttons)
     msg = bot.send_message(chat_id=cid, text=f'Как переводится "{practice_word}"?', reply_markup=markup)
     bot.register_next_step_handler(msg, check_answer, practice_word, target_translation, buttons_word)
 
+
 def check_answer(message, practice_word, target_translation, buttons_word):
+    """Проверяет правильность ответа, если ответ неправильный, убирает выбранную кнопку и повторяет вопрос"""
     cid = message.chat.id
     answer = message.text
     if answer != target_translation:
@@ -184,19 +203,25 @@ def check_answer(message, practice_word, target_translation, buttons_word):
 
     print(f'Список очищен')
 
+
 def next_round(message):
+    """Реализация кнопки следующего раунда и окончание тренировки"""
     if message.text == 'Дальше ➡️':
         start_practise(message)
     else:
         bot.send_message(message.chat.id, "Отличная тренировка!", reply_markup=get_main_menu())
 
+
 @bot.message_handler(commands=['delete'])
 def delete_word(message):
+    """Запрос слова для удаления"""
     cid = message.chat.id
     msg = bot.send_message(chat_id=cid, text=f'Введи слово которое нужно удалить', reply_markup=get_main_menu())
-    bot.register_next_step_handler(msg,delete_word_translate)
+    bot.register_next_step_handler(msg, delete_word_translate)
+
 
 def delete_word_translate(message):
+    """Выбор перевода для удаления"""
     cid = message.chat.id
     if message.content_type == 'text':
         del_word = message.text.strip().lower()
@@ -209,7 +234,7 @@ def delete_word_translate(message):
         translations = session.query(Word).filter(Word.word == del_word, Word.user_id == user.id).all()
         if translations:
             list_translations = [translation.translation for translation in translations]
-            markup = types.ReplyKeyboardMarkup(row_width=2,one_time_keyboard=True)
+            markup = types.ReplyKeyboardMarkup(row_width=2, one_time_keyboard=True)
             buttons = [types.KeyboardButton(translation) for translation in list_translations]
             markup.add(*buttons)
             trans = bot.send_message(chat_id=cid, text='Выбери перевод, который нужно удалить', reply_markup=markup)
@@ -219,6 +244,7 @@ def delete_word_translate(message):
 
 
 def delete_word_db(message, del_word):
+    """Удаление слова с переводом из БД"""
     cid = message.chat.id
     trans = message.text
     with Session() as session:
@@ -232,7 +258,9 @@ def delete_word_db(message, del_word):
         else:
             bot.send_message(chat_id=cid, text=f'Не удалось найти слово для удаления.', reply_markup=get_main_menu())
 
+
 def get_list_presets():
+    """Получение актуального списка сборников слов"""
     with Session() as s:
         data = s.query(PresetWord.category).distinct(PresetWord.category).all()
         category = []
@@ -240,7 +268,9 @@ def get_list_presets():
             category += list(word)
         return category
 
+
 def show_collections(message):
+    """Отображение имеющихся сборников"""
     list_category = get_list_presets()
     cid = message.chat.id
     markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True, one_time_keyboard=True)
@@ -249,7 +279,9 @@ def show_collections(message):
     msg = bot.send_message(cid, "Выберите тему:", reply_markup=markup)
     bot.register_next_step_handler(msg, show_words_presets)
 
+
 def show_words_presets(message):
+    """Отображение слов в коллекции для подтверждения обновления словаря"""
     cid = message.chat.id
     if message.text == '🔙 Назад':
         menu(message)
@@ -272,7 +304,9 @@ def show_words_presets(message):
         msg = bot.send_message(chat_id=cid, text=text, reply_markup=markup)
         bot.register_next_step_handler(msg, add_preset_db, choice)
 
+
 def add_preset_db(message, choice):
+    """Добавление слов в словарь пользователя"""
     cid = message.chat.id
     answer = message.text
     if answer == "🔙 Назад":

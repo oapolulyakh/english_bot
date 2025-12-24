@@ -3,6 +3,8 @@ from sqlalchemy import Column, Integer, String, BigInteger, ForeignKey
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
+
+
 class User(Base):
     __tablename__ = 'user'
     id = Column(Integer, primary_key=True)
@@ -13,6 +15,7 @@ class User(Base):
 
     def __str__(self):
         return f"User {self.cid}: {self.username}"
+
 
 class Word(Base):
     __tablename__ = 'words'
@@ -26,6 +29,7 @@ class Word(Base):
     def __str__(self):
         return f"Word {self.word} - > {self.translation}"
 
+
 class PresetWord(Base):
     __tablename__ = 'preset_words'
     id = Column(Integer, primary_key=True)
@@ -35,6 +39,7 @@ class PresetWord(Base):
 
     def __str__(self):
         return f"{self.word} -> {self.translation} ({self.category})"
+
 
 def create_tables(engine):
     Base.metadata.create_all(engine)

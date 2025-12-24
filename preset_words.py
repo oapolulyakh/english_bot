@@ -4,6 +4,7 @@ from sqlalchemy.orm import declarative_base, relationship, Session
 from models import *
 from sqlalchemy.orm import sessionmaker, session
 
+
 def add_initial_presets(engine):
     with Session(engine) as session:
         if session.query(PresetWord).count() == 0:
