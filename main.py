@@ -83,6 +83,12 @@ def handle_menu(message):
         delete_word(message)
     elif message.text == '📚 Сборники слов':
         show_collections(message)
+    else: 
+        bot.send_message(
+            message.chat.id,
+            "Я перезагрузился и забыл, о чем мы говорили. 🤖\nНачни сначала через меню.",
+            reply_markup=get_main_menu()
+        )
 
 
 @bot.message_handler(commands=['add'])
@@ -187,7 +193,8 @@ def check_answer(message, practice_word, target_translation, buttons_word):
             msg = bot.send_message(cid, "Продолжим?", reply_markup=markup)
             bot.register_next_step_handler(msg, next_round)
         else:
-            buttons_word.remove(answer)
+            if answer in buttons_word:
+                buttons_word.remove(answer)
             bot.send_message(chat_id=cid, text=f'Неверно, попробуй еще раз',
                              reply_markup=types.ReplyKeyboardRemove())
             ask_question(cid, practice_word, target_translation, buttons_word)
@@ -334,4 +341,4 @@ def add_preset_db(message, choice):
 
 if "__main__" == __name__:
     print("Bot working...")
-    bot.polling()
+    bot.polling(non_stop=True, skip_pending=True)
