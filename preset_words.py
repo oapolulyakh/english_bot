@@ -1,8 +1,5 @@
-import sqlalchemy
-from sqlalchemy import Column, Integer, String, BigInteger, ForeignKey
-from sqlalchemy.orm import declarative_base, relationship, Session
-from models import *
-from sqlalchemy.orm import sessionmaker, session
+from sqlalchemy.orm import Session
+from models import PresetWord
 
 
 def add_initial_presets(engine):

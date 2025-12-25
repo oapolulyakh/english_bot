@@ -161,7 +161,6 @@ def start_practise(message):
     target_translation = words_list[0]['translation']
     buttons_word = [word['translation'] for word in words_list[0:4]]
     shuffle(buttons_word)
-    print(f'{buttons_word=} создан список')
     ask_question(cid, practice_word, target_translation, buttons_word)
 
 
@@ -200,8 +199,6 @@ def check_answer(message, practice_word, target_translation, buttons_word):
         markup.add(types.KeyboardButton('Дальше ➡️'), types.KeyboardButton('❌ Стоп'))
         msg = bot.send_message(cid, "Продолжим?", reply_markup=markup)
         bot.register_next_step_handler(msg, next_round)
-
-    print(f'Список очищен')
 
 
 def next_round(message):
