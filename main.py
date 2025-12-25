@@ -83,7 +83,7 @@ def handle_menu(message):
         delete_word(message)
     elif message.text == '📚 Сборники слов':
         show_collections(message)
-    else: 
+    else:
         bot.send_message(
             message.chat.id,
             "Я перезагрузился и забыл, о чем мы говорили. 🤖\nНачни сначала через меню.",
