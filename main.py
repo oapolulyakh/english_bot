@@ -21,7 +21,10 @@ add_initial_presets(engine)
 
 def random_word(cid):
     """
-    Функция для создания списка слов при повторении
+    Функция для создания списка слов дя режима тренировок, чтобы передать их в кнопки
+    :param cid:
+    :return: words_list:
+
     """
     with Session() as s:
         user_id = s.query(User).filter(User.cid == cid).first()
@@ -35,7 +38,10 @@ def random_word(cid):
 
 
 def get_main_menu():
-    """Основное меню"""
+    """
+    Основное меню
+    Функция для создания markup по основным кнопкам
+    """
     markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
     btn1 = types.KeyboardButton('➕ Добавить слово')
     btn2 = types.KeyboardButton('🎮 Тренировка')
@@ -47,7 +53,11 @@ def get_main_menu():
 
 @bot.message_handler(commands=['start'])
 def start(message):
-    """Начало работы с ботом, если пользователь нет в базе, добавляет в БД"""
+    """
+    Запуск бота
+    Если клиент не найден в базе, добавляет в БД
+    Если клиент есть в базе, приветствует user
+    """
     cid = message.chat.id
     username = message.from_user.username
     with Session() as session:
@@ -68,13 +78,17 @@ def start(message):
 
 @bot.message_handler(commands=['menu'])
 def menu(message):
+    """Достает меню, если оно не было доступно по какой-либо причине"""
     cid = message.chat.id
     bot.send_message(cid, "Выбери действие в меню 👇", reply_markup=get_main_menu())
 
 
 @bot.message_handler(func=lambda message: True)
 def handle_menu(message):
-    """Обработчик тестового меню"""
+    """
+    Обработчик тестового меню
+    Вызывает команды в соответствии с ответом user
+    """
     if message.text == '➕ Добавить слово':
         ask_word(message)
     elif message.text == '🎮 Тренировка':
@@ -100,7 +114,10 @@ def ask_word(message):
 
 
 def ask_translation(message):
-    """Уточняет перевод для добавления"""
+    """
+    Уточняет перевод для добавления
+    Если ранее слово было указано не текстом, возвращает этап назад
+    """
     cid = message.chat.id
     if message.content_type != 'text':
         msg = bot.send_message(cid, f"Это не текст. Введите слово буквами", reply_markup=get_main_menu())
@@ -112,7 +129,10 @@ def ask_translation(message):
 
 
 def add_word_logic(session, word, translation, user_id):
-    """Функция для добавления слова в БД"""
+    """
+    Функция добавления слова в БД
+    Если слово с заданным переводом уже есть, возвращает сообщение об этом
+    """
     existing_word = session.query(Word).filter(
         Word.word == word,
         Word.translation == translation,
@@ -124,11 +144,14 @@ def add_word_logic(session, word, translation, user_id):
     else:
         obj = Word(word=word, translation=translation, user_id=user_id)
         session.add(obj)
-        return True, f'Слово "{word}" добавлено.'
+        return True
 
 
 def add_word_db(message, word):
-    """Добавление нового слова в БД пользователем"""
+    """
+    Добавление нового слова в БД пользователем
+    Вывод сообщения о добавлении
+    """
     cid = message.chat.id
     if message.content_type != 'text':
         msg = bot.send_message(cid, f"Это не текст, введите перевод буквами", reply_markup=get_main_menu())
@@ -157,7 +180,10 @@ def add_word_db(message, word):
 
 @bot.message_handler(commands=['practise'])
 def start_practise(message):
-    """Функция тренировки, формирует список и кнопки для ответа"""
+    """
+    Функция тренировки, формирует список и кнопки для ответа
+    Если кнопок меньше 2-х возвращает информацию о необходимости добавить слова
+    """
     cid = message.chat.id
     words_list = random_word(cid)
     if len(words_list) < 2:
