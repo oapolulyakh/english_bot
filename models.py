@@ -42,4 +42,13 @@ class PresetWord(Base):
 
 
 def create_tables(engine):
+    """
+    Создает все таблицы в базе данных на основе определенных моделей SQLAlchemy.
+    
+    Использует метаданные Base для создания таблиц user, words и preset_words,
+    если они еще не существуют в базе данных.
+    
+    :param engine: Объект движка SQLAlchemy для подключения к базе данных
+    :type engine: sqlalchemy.engine.Engine
+    """
     Base.metadata.create_all(engine)

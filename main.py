@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker
 from models import User, Word, PresetWord, create_tables
 from preset_words import add_initial_presets
 from telebot import types
-from random import shuffle
+from random import shuffle 
 
 load_dotenv()
 token = os.getenv('token')
@@ -21,10 +21,13 @@ add_initial_presets(engine)
 
 def random_word(cid):
     """
-    Функция для создания списка слов дя режима тренировок, чтобы передать их в кнопки
-    :param cid:
-    :return: words_list:
-
+    Получает список слов пользователя из базы данных и перемешивает их для режима тренировок.
+    
+    :param cid: ID чата пользователя в Telegram
+    :type cid: int
+    :return: Список словарей с ключами 'word' и 'translation', перемешанный случайным образом
+    :rtype: list[dict]
+    :return: Пустой список, если пользователь не найден в базе данных
     """
     with Session() as s:
         user_id = s.query(User).filter(User.cid == cid).first()
@@ -39,8 +42,16 @@ def random_word(cid):
 
 def get_main_menu():
     """
-    Основное меню
-    Функция для создания markup по основным кнопкам
+    Создает и возвращает клавиатуру с основными кнопками главного меню бота.
+    
+    Кнопки меню:
+    - ➕ Добавить слово
+    - 🎮 Тренировка
+    - 🗑 Удалить слово
+    - 📚 Сборники слов
+    
+    :return: Объект клавиатуры с основными кнопками меню
+    :rtype: telebot.types.ReplyKeyboardMarkup
     """
     markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
     btn1 = types.KeyboardButton('➕ Добавить слово')
@@ -54,9 +65,14 @@ def get_main_menu():
 @bot.message_handler(commands=['start'])
 def start(message):
     """
-    Запуск бота
-    Если клиент не найден в базе, добавляет в БД
-    Если клиент есть в базе, приветствует user
+    Обработчик команды /start. Инициализирует пользователя в системе.
+    
+    Если пользователь уже существует в базе данных, отправляет приветственное сообщение.
+    Если пользователь новый, создает запись в базе данных и отправляет сообщение о знакомстве.
+    После этого отображает главное меню.
+    
+    :param message: Объект сообщения от Telegram Bot API
+    :type message: telebot.types.Message
     """
     cid = message.chat.id
     username = message.from_user.username
@@ -78,7 +94,14 @@ def start(message):
 
 @bot.message_handler(commands=['menu'])
 def menu(message):
-    """Достает меню, если оно не было доступно по какой-либо причине"""
+    """
+    Обработчик команды /menu. Восстанавливает отображение главного меню.
+    
+    Используется, если меню было скрыто или недоступно по какой-либо причине.
+    
+    :param message: Объект сообщения от Telegram Bot API
+    :type message: telebot.types.Message
+    """
     cid = message.chat.id
     bot.send_message(cid, "Выбери действие в меню 👇", reply_markup=get_main_menu())
 
@@ -86,8 +109,18 @@ def menu(message):
 @bot.message_handler(func=lambda message: True)
 def handle_menu(message):
     """
-    Обработчик тестового меню
-    Вызывает команды в соответствии с ответом user
+    Универсальный обработчик текстовых сообщений. Маршрутизирует команды в зависимости от выбранной кнопки меню.
+    
+    Обрабатывает следующие действия:
+    - '➕ Добавить слово' - запускает процесс добавления нового слова
+    - '🎮 Тренировка' - запускает режим тренировки
+    - '🗑 Удалить слово' - запускает процесс удаления слова
+    - '📚 Сборники слов' - отображает доступные сборники слов
+    
+    Если сообщение не соответствует ни одной команде, отправляет сообщение о необходимости начать заново.
+    
+    :param message: Объект сообщения от Telegram Bot API
+    :type message: telebot.types.Message
     """
     if message.text == '➕ Добавить слово':
         ask_word(message)
@@ -107,7 +140,14 @@ def handle_menu(message):
 
 @bot.message_handler(commands=['add'])
 def ask_word(message):
-    """Уточняет слово для добавления"""
+    """
+    Обработчик команды /add. Запрашивает у пользователя слово на английском языке для добавления в словарь.
+    
+    После получения сообщения регистрирует следующий шаг обработки - функцию ask_translation.
+    
+    :param message: Объект сообщения от Telegram Bot API
+    :type message: telebot.types.Message
+    """
     msg = bot.send_message(chat_id=message.chat.id, text="Введите слово на английском языке",
                            reply_markup=get_main_menu())
     bot.register_next_step_handler(msg, ask_translation)
@@ -115,8 +155,14 @@ def ask_word(message):
 
 def ask_translation(message):
     """
-    Уточняет перевод для добавления
-    Если ранее слово было указано не текстом, возвращает этап назад
+    Запрашивает перевод для ранее введенного слова.
+    
+    Проверяет, что сообщение содержит текст. Если сообщение не является текстовым,
+    запрашивает повторный ввод слова. После получения слова регистрирует следующий
+    шаг - функцию add_word_db для добавления слова в базу данных.
+    
+    :param message: Объект сообщения от Telegram Bot API с введенным словом
+    :type message: telebot.types.Message
     """
     cid = message.chat.id
     if message.content_type != 'text':
@@ -130,8 +176,22 @@ def ask_translation(message):
 
 def add_word_logic(session, word, translation, user_id):
     """
-    Функция добавления слова в БД
-    Если слово с заданным переводом уже есть, возвращает сообщение об этом
+    Логика добавления слова в базу данных. Проверяет наличие дубликатов перед добавлением.
+    
+    Проверяет, существует ли уже слово с таким же текстом и переводом для данного пользователя.
+    Если слово уже существует, возвращает False и сообщение об ошибке.
+    Если слова нет, создает новый объект Word и добавляет его в сессию.
+    
+    :param session: Сессия SQLAlchemy для работы с базой данных
+    :type session: sqlalchemy.orm.Session
+    :param word: Слово на английском языке (в нижнем регистре)
+    :type word: str
+    :param translation: Перевод слова (в нижнем регистре)
+    :type translation: str
+    :param user_id: ID пользователя в базе данных
+    :type user_id: int
+    :return: Кортеж (успех_добавления, сообщение)
+    :rtype: tuple[bool, str]
     """
     existing_word = session.query(Word).filter(
         Word.word == word,
@@ -149,8 +209,16 @@ def add_word_logic(session, word, translation, user_id):
 
 def add_word_db(message, word):
     """
-    Добавление нового слова в БД пользователем
-    Вывод сообщения о добавлении
+    Добавляет новое слово с переводом в базу данных пользователя.
+    
+    Проверяет, что сообщение содержит текст. Если нет - запрашивает повторный ввод.
+    Получает пользователя из базы данных, вызывает add_word_logic для добавления слова,
+    коммитит изменения и отправляет пользователю сообщение о результате операции.
+    
+    :param message: Объект сообщения от Telegram Bot API с переводом слова
+    :type message: telebot.types.Message
+    :param word: Слово на английском языке, для которого запрашивается перевод
+    :type word: str
     """
     cid = message.chat.id
     if message.content_type != 'text':
@@ -181,8 +249,14 @@ def add_word_db(message, word):
 @bot.message_handler(commands=['practise'])
 def start_practise(message):
     """
-    Функция тренировки, формирует список и кнопки для ответа
-    Если кнопок меньше 2-х возвращает информацию о необходимости добавить слова
+    Обработчик команды /practise. Запускает режим тренировки по словам.
+    
+    Получает список слов пользователя, перемешанный случайным образом. Если слов меньше двух,
+    отправляет сообщение о необходимости добавить больше слов. Иначе выбирает первое слово
+    из списка, формирует 4 варианта ответа (включая правильный) и вызывает ask_question.
+    
+    :param message: Объект сообщения от Telegram Bot API
+    :type message: telebot.types.Message
     """
     cid = message.chat.id
     words_list = random_word(cid)
@@ -197,7 +271,21 @@ def start_practise(message):
 
 
 def ask_question(cid, practice_word, target_translation, buttons_word):
-    """Задает вопрос и получает ответ"""
+    """
+    Отправляет пользователю вопрос о переводе слова и создает клавиатуру с вариантами ответов.
+    
+    Создает клавиатуру с кнопками-вариантами ответов и отправляет вопрос пользователю.
+    Регистрирует следующий шаг обработки - функцию check_answer для проверки ответа.
+    
+    :param cid: ID чата пользователя в Telegram
+    :type cid: int
+    :param practice_word: Слово на английском языке, перевод которого нужно угадать
+    :type practice_word: str
+    :param target_translation: Правильный перевод слова
+    :type target_translation: str
+    :param buttons_word: Список вариантов переводов для кнопок (включая правильный)
+    :type buttons_word: list[str]
+    """
     markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True, one_time_keyboard=True)
     buttons = [types.KeyboardButton(word) for word in buttons_word]
     markup.add(*buttons)
@@ -206,7 +294,26 @@ def ask_question(cid, practice_word, target_translation, buttons_word):
 
 
 def check_answer(message, practice_word, target_translation, buttons_word):
-    """Проверяет правильность ответа, если ответ неправильный, убирает выбранную кнопку и повторяет вопрос"""
+    """
+    Проверяет правильность ответа пользователя на вопрос о переводе слова.
+    
+    Если ответ правильный:
+    - Отправляет сообщение о правильном ответе
+    - Предлагает продолжить тренировку или остановиться
+    
+    Если ответ неправильный:
+    - Если вариантов ответа осталось 2 или меньше, показывает правильный ответ и предлагает продолжить
+    - Иначе удаляет неправильный вариант из списка и повторяет вопрос с оставшимися вариантами
+    
+    :param message: Объект сообщения от Telegram Bot API с ответом пользователя
+    :type message: telebot.types.Message
+    :param practice_word: Слово на английском языке, перевод которого угадывается
+    :type practice_word: str
+    :param target_translation: Правильный перевод слова
+    :type target_translation: str
+    :param buttons_word: Список вариантов переводов (может изменяться при неправильных ответах)
+    :type buttons_word: list[str]
+    """
     cid = message.chat.id
     answer = message.text
     if answer != target_translation:
@@ -235,7 +342,15 @@ def check_answer(message, practice_word, target_translation, buttons_word):
 
 
 def next_round(message):
-    """Реализация кнопки следующего раунда и окончание тренировки"""
+    """
+    Обрабатывает выбор пользователя после завершения вопроса в режиме тренировки.
+    
+    Если пользователь выбрал "Дальше ➡️", запускает следующий раунд тренировки.
+    Если пользователь выбрал "❌ Стоп", завершает тренировку и возвращает главное меню.
+    
+    :param message: Объект сообщения от Telegram Bot API с выбором пользователя
+    :type message: telebot.types.Message
+    """
     if message.text == 'Дальше ➡️':
         start_practise(message)
     else:
@@ -244,14 +359,30 @@ def next_round(message):
 
 @bot.message_handler(commands=['delete'])
 def delete_word(message):
-    """Запрос слова для удаления"""
+    """
+    Обработчик команды /delete. Запрашивает у пользователя слово для удаления из словаря.
+    
+    После получения сообщения регистрирует следующий шаг обработки - функцию delete_word_translate.
+    
+    :param message: Объект сообщения от Telegram Bot API
+    :type message: telebot.types.Message
+    """
     cid = message.chat.id
     msg = bot.send_message(chat_id=cid, text=f'Введи слово которое нужно удалить', reply_markup=get_main_menu())
     bot.register_next_step_handler(msg, delete_word_translate)
 
 
 def delete_word_translate(message):
-    """Выбор перевода для удаления"""
+    """
+    Обрабатывает введенное пользователем слово и предлагает выбрать конкретный перевод для удаления.
+    
+    Проверяет, что сообщение содержит текст. Если слово найдено в словаре пользователя,
+    создает клавиатуру со всеми переводами этого слова и предлагает выбрать, какой именно
+    перевод нужно удалить. Если слово не найдено, сообщает об этом пользователю.
+    
+    :param message: Объект сообщения от Telegram Bot API с введенным словом для удаления
+    :type message: telebot.types.Message
+    """
     cid = message.chat.id
     if message.content_type == 'text':
         del_word = message.text.strip().lower()
@@ -274,7 +405,18 @@ def delete_word_translate(message):
 
 
 def delete_word_db(message, del_word):
-    """Удаление слова с переводом из БД"""
+    """
+    Удаляет слово с указанным переводом из базы данных пользователя.
+    
+    Находит слово в базе данных по тексту слова, переводу и ID пользователя.
+    Если слово найдено, удаляет его и отправляет подтверждение пользователю.
+    Если слово не найдено, отправляет сообщение об ошибке.
+    
+    :param message: Объект сообщения от Telegram Bot API с выбранным переводом для удаления
+    :type message: telebot.types.Message
+    :param del_word: Слово на английском языке, которое нужно удалить
+    :type del_word: str
+    """
     cid = message.chat.id
     trans = message.text
     with Session() as session:
@@ -290,7 +432,12 @@ def delete_word_db(message, del_word):
 
 
 def get_list_presets():
-    """Получение актуального списка сборников слов"""
+    """
+    Получает список всех уникальных категорий (сборников) предустановленных слов из базы данных.
+    
+    :return: Список названий категорий сборников слов
+    :rtype: list[str]
+    """
     with Session() as s:
         data = s.query(PresetWord.category).distinct(PresetWord.category).all()
         category = []
@@ -300,7 +447,16 @@ def get_list_presets():
 
 
 def show_collections(message):
-    """Отображение имеющихся сборников"""
+    """
+    Отображает список доступных сборников (категорий) предустановленных слов.
+    
+    Получает список всех категорий из базы данных и создает клавиатуру с кнопками
+    для выбора категории. Также добавляет кнопку "🔙 Назад" для возврата в главное меню.
+    После выбора категории регистрирует следующий шаг - функцию show_words_presets.
+    
+    :param message: Объект сообщения от Telegram Bot API
+    :type message: telebot.types.Message
+    """
     list_category = get_list_presets()
     cid = message.chat.id
     markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True, one_time_keyboard=True)
@@ -311,7 +467,17 @@ def show_collections(message):
 
 
 def show_words_presets(message):
-    """Отображение слов в коллекции для подтверждения обновления словаря"""
+    """
+    Отображает все слова из выбранной категории сборника и предлагает добавить их в словарь.
+    
+    Если пользователь выбрал "🔙 Назад", возвращает в меню выбора сборников.
+    Иначе получает все слова из выбранной категории, форматирует их в читаемый список
+    и отправляет пользователю с предложением добавить слова в свой словарь.
+    Регистрирует следующий шаг - функцию add_preset_db.
+    
+    :param message: Объект сообщения от Telegram Bot API с выбранной категорией
+    :type message: telebot.types.Message
+    """
     cid = message.chat.id
     if message.text == '🔙 Назад':
         menu(message)
@@ -336,7 +502,20 @@ def show_words_presets(message):
 
 
 def add_preset_db(message, choice):
-    """Добавление слов в словарь пользователя"""
+    """
+    Добавляет все слова из выбранного сборника в словарь пользователя.
+    
+    Если пользователь выбрал "🔙 Назад", возвращает к списку сборников.
+    Если пользователь выбрал "Добавить ✅", получает все слова из выбранной категории
+    и добавляет их в словарь пользователя через функцию add_word_logic.
+    Подсчитывает количество успешно добавленных слов и отправляет результат пользователю.
+    Если слово уже существует в словаре пользователя, оно пропускается.
+    
+    :param message: Объект сообщения от Telegram Bot API с выбором пользователя
+    :type message: telebot.types.Message
+    :param choice: Название выбранной категории сборника
+    :type choice: str
+    """
     cid = message.chat.id
     answer = message.text
     if answer == "🔙 Назад":
