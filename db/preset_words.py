@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from models import PresetWord
+from db.models import PresetWord
 
 
 def add_initial_presets(engine):
